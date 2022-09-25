@@ -1,4 +1,4 @@
-package com.tnodev.gnewsmvi
+package com.tnodev.gnewsmvi.view
 
 import android.os.Bundle
 import com.google.android.material.snackbar.Snackbar
@@ -9,29 +9,70 @@ import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
 import android.view.Menu
 import android.view.MenuItem
-import com.tnodev.gnewsmvi.databinding.ActivityMainBinding
+import android.view.View
+import androidx.activity.viewModels
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import com.tnodev.gnewsmvi.NewsIntent
+import com.tnodev.gnewsmvi.NewsStates
+import com.tnodev.gnewsmvi.R
+import com.tnodev.gnewsmvi.databinding.ActivityNewsBinding
+import com.tnodev.gnewsmvi.viewmodel.NewsViewModel
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 
 class NewsActivity : AppCompatActivity() {
 
     private lateinit var appBarConfiguration: AppBarConfiguration
-    private lateinit var binding: ActivityMainBinding
+    private lateinit var binding: ActivityNewsBinding
+    private val newsViewModel: NewsViewModel by viewModels()
+    private var newsAdapter = NewsAdapter();
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        binding = ActivityMainBinding.inflate(layoutInflater)
+        binding = ActivityNewsBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        setSupportActionBar(binding.toolbar)
+        // setSupportActionBar(binding.toolbar)
 
-        val navController = findNavController(R.id.nav_host_fragment_content_main)
-        appBarConfiguration = AppBarConfiguration(navController.graph)
-        setupActionBarWithNavController(navController, appBarConfiguration)
 
-        binding.fab.setOnClickListener { view ->
-            Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG)
-                .setAction("Action", null).show()
+
+        binding.rvNews.apply {
+            layoutManager = LinearLayoutManager(context);
+            setHasFixedSize(true)
+            adapter = newsAdapter;
+
         }
+
+        lifecycleScope.launch {
+
+            newsViewModel.newsChannel.send(NewsIntent.TopHeadLinesIntent);
+        }
+
+        lifecycleScope.launch {
+            lifecycleScope.launchWhenStarted {
+                newsViewModel.newsStates.collect {
+
+                    when(it){
+                        is NewsStates.Success -> {
+                            binding.progressBar.visibility = View.GONE
+                            newsAdapter.addArticle(it.news.articles)
+                        }
+                        is NewsStates.Error -> {
+                            binding.progressBar.visibility = View.GONE
+                        }
+                        is NewsStates.Loading ->{
+                            binding.progressBar.visibility = View.VISIBLE
+                        }
+                    }
+                }
+
+            }
+        }
+
+
+
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
